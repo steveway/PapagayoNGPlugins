@@ -7,7 +7,7 @@ bl_info = {
     "description": "Create GreasePencil Object with Layers and Keyframes from Papagayo-NG .pg2 files.",
     "warning": "",
     "wiki_url": ""
-    "Scripts/Import-Export/Lipsync Importer",
+    "Scripts/Import-Export/Papagayo 2D Importer",
     "tracker_url": "",
     "category": "Import-Export"}
 
@@ -69,7 +69,8 @@ class MyProperties(PropertyGroup):
         default = False
         )
                         
-class LIPSYNC_PT_ui(bpy.types.Panel):
+class PapagayoNGImporterUI(bpy.types.Panel):
+    bl_id_name = "pg_main_menu"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_label = "Papagayo-NG 2D Importer"
@@ -212,7 +213,7 @@ def create_keyframes(file_path):
                     except RuntimeError:
                         pass
         
-classes = (LIPSYNC_PT_ui, BTN_OP_create_grease_objects, BTN_OP_apply_to_timeline, OT_TestOpenFilebrowser, MyProperties)
+classes = (PapagayoNGImporterUI, BTN_OP_create_grease_objects, BTN_OP_apply_to_timeline, OT_TestOpenFilebrowser, MyProperties)
                     
 def register():
     scene = bpy.types.Scene
