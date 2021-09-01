@@ -93,6 +93,9 @@ class PapagayoNGImporterUI(bpy.types.Panel):
             col.label(text="No File loaded", icon="FILE_FOLDER")
         col.separator()
         if scene.pg_path:
+            col.label(text="Used Phonemes")
+            for phoneme in get_list_of_phonemes(scene.pg_path):
+                col.label(text=phoneme)                
             col.operator("pg.create_objects", text="Create Grease Pencil Objects")
         if scene.pg_objects_created:
             col.separator()
@@ -103,6 +106,16 @@ class PapagayoNGImporterUI(bpy.types.Panel):
             col.separator()
             col.operator("pg.apply_timeline", text="Apply to Timeline")
 
+def get_list_of_phonemes(file_path):
+    papagayo_file = open(file_path, "r")
+    papagayo_json = json.load(papagayo_file)
+    list_of_used_phonemes = []
+    for voice in papagayo_json["voices"]:
+        for phoneme in voice["used_phonemes"]:
+            list_of_used_phonemes.append(phoneme)
+    papagayo_file.close()
+    return list_of_used_phonemes
+            
 def create_grease_objects(file_path):
     papagayo_file = open(file_path, "r")
     papagayo_json = json.load(papagayo_file)
