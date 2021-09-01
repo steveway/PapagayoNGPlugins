@@ -110,9 +110,13 @@ def get_list_of_phonemes(file_path):
     papagayo_file = open(file_path, "r")
     papagayo_json = json.load(papagayo_file)
     list_of_used_phonemes = []
-    for voice in papagayo_json["voices"]:
-        for phoneme in voice["used_phonemes"]:
-            list_of_used_phonemes.append(phoneme)
+    if file_path.endswith(".pg2"):
+        for voice in papagayo_json["voices"]:
+            for phoneme in voice["used_phonemes"]:
+                list_of_used_phonemes.append(phoneme)
+    else:
+        for phoneme in papagayo_json["used_phonemes"]:
+                list_of_used_phonemes.append(phoneme)
     papagayo_file.close()
     return list_of_used_phonemes
             
@@ -122,29 +126,43 @@ def create_grease_objects(file_path):
     FPS = papagayo_json["fps"]
     bpy.context.scene.render.fps = FPS
     scene = bpy.types.Scene
+    if file_path.endswith(".pg2"):
+        if not bpy.data.sounds.items():
+            bpy.ops.sound.open_mono(filepath=papagayo_json["sound_path"])
+        scene.pg_sound_data = bpy.data.sounds[0]
+        # Audio loads fine, can be used with manually added speaker, but this speaker stays silent...
+        """
+        if not bpy.data.speakers.items():
+            bpy.ops.object.speaker_add()
 
-    if not bpy.data.sounds.items():
-        bpy.ops.sound.open_mono(filepath=papagayo_json["sound_path"])
-    scene.pg_sound_data = bpy.data.sounds[0]
-    # Audio loads fine, can be used with manually added speaker, but this speaker stays silent...
-    """
-    if not bpy.data.speakers.items():
-        bpy.ops.object.speaker_add()
-    
-    speaker = bpy.data.speakers[0]
-    speaker.sound = scene.pg_sound_data
-    """
-    NUM_FRAMES = papagayo_json["sound_duration"]
+        speaker = bpy.data.speakers[0]
+        speaker.sound = scene.pg_sound_data
+        """
+        NUM_FRAMES = papagayo_json["sound_duration"]
+    else:
+        NUM_FRAMES = papagayo_json["end_frame"]
     FRAMES_SPACING = 1  # distance between frames
     bpy.context.scene.frame_start = -1
     bpy.context.scene.frame_end = NUM_FRAMES*FRAMES_SPACING
     bpy.context.scene.frame_current = -1
-
-    for voice in papagayo_json["voices"]:
-        curr_name = voice["name"]
+    if file_path.endswith(".pg2"):
+        for voice in papagayo_json["voices"]:
+            curr_name = voice["name"]
+            if curr_name not in bpy.data.grease_pencils:
+                bpy.data.grease_pencils.new(curr_name)
+            for phoneme in voice["used_phonemes"]:
+                if phoneme not in bpy.data.grease_pencils[curr_name].layers:
+                    bpy.data.grease_pencils[curr_name].layers.new(phoneme)
+                pho_layer = bpy.data.grease_pencils[curr_name].layers[phoneme]
+                try:
+                    frame = pho_layer.frames[-1]
+                except IndexError:
+                    pho_layer.frames.new(-1)
+    else:
+        curr_name = papagayo_json["name"]
         if curr_name not in bpy.data.grease_pencils:
             bpy.data.grease_pencils.new(curr_name)
-        for phoneme in voice["used_phonemes"]:
+        for phoneme in papagayo_json["used_phonemes"]:
             if phoneme not in bpy.data.grease_pencils[curr_name].layers:
                 bpy.data.grease_pencils[curr_name].layers.new(phoneme)
             pho_layer = bpy.data.grease_pencils[curr_name].layers[phoneme]
@@ -159,7 +177,14 @@ def fill_timeline(file_path):
     papagayo_file = open(file_path, "r")
     papagayo_json = json.load(papagayo_file)
     last_pos = 0
-    for voice in papagayo_json["voices"]:
+    voice_list = []
+    if file_path.endswith(".pg2"):
+        for voice in papagayo_json["voices"]:
+            voice_list.append(voice)
+    else:
+        voice_list.append(papagayo_json)
+    
+    for voice in voice_list:
         curr_name = voice["name"]
         if curr_name + "combined" in bpy.data.grease_pencils[curr_name].layers: # TODO: Show a warning and allow to abort
             bpy.data.grease_pencils[curr_name].layers[curr_name + "combined"].clear()
@@ -205,13 +230,20 @@ def create_keyframes(file_path):
     papagayo_json = json.load(papagayo_file)
     FPS = papagayo_json["fps"]
     bpy.context.scene.render.fps = FPS
-
-    NUM_FRAMES = papagayo_json["sound_duration"]
+    if file_path.endswith(".pg2"):
+        NUM_FRAMES = papagayo_json["sound_duration"]
+    else: NUM_FRAMES = papagayo_json["end_frame"]
     FRAMES_SPACING = 1  # distance between frames
     bpy.context.scene.frame_start = 0
     bpy.context.scene.frame_end = NUM_FRAMES*FRAMES_SPACING
+    voice_list = []
+    if file_path.endswith(".pg2"):
+        for voice in papagayo_json["voices"]:
+            voice_list.append(voice)
+    else:
+        voice_list.append(papagayo_json)
 
-    for voice in papagayo_json["voices"]:
+    for voice in voice_list:
         
         curr_name = voice["name"]
         if curr_name not in bpy.data.grease_pencils:
