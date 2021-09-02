@@ -127,9 +127,18 @@ def create_grease_objects(file_path):
     bpy.context.scene.render.fps = FPS
     scene = bpy.types.Scene
     if file_path.endswith(".pg2"):
+        sound_path = ""
+        if os.path.isabs(papagayo_json["sound_path"]): 
+            sound_path = papagayo_json["sound_path"]
+            else:
+            sound_path = os.path.join(os.path.dirname(file_path), papagayo_json["sound_path"])
         if not bpy.data.sounds.items():
-            bpy.ops.sound.open_mono(filepath=papagayo_json["sound_path"])
+            bpy.ops.sound.open_mono(filepath=sound_path)
         scene.pg_sound_data = bpy.data.sounds[0]
+        prev_area_type = bpy.context.area.type
+        bpy.context.area.type = 'SEQUENCE_EDITOR'
+        bpy.ops.sequencer.sound_strip_add(filepath=sound_path, frame_start=0, channel=1)
+        bpy.context.area.type = prev_area_type
         # Audio loads fine, can be used with manually added speaker, but this speaker stays silent...
         """
         if not bpy.data.speakers.items():
