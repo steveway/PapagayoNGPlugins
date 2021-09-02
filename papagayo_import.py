@@ -93,7 +93,7 @@ class PapagayoNGImporterUI(bpy.types.Panel):
             col.label(text="No File loaded", icon="FILE_FOLDER")
         col.separator()
         if scene.pg_path:
-            col.label(text="Used Phonemes")
+            col.label(text="Used Phonemes:")
             for phoneme in get_list_of_phonemes(scene.pg_path):
                 col.label(text=phoneme)                
             col.operator("pg.create_objects", text="Create Grease Pencil Objects")
@@ -112,11 +112,13 @@ def get_list_of_phonemes(file_path):
     list_of_used_phonemes = []
     if file_path.endswith(".pg2"):
         for voice in papagayo_json["voices"]:
-            for phoneme in voice["used_phonemes"]:
-                list_of_used_phonemes.append(phoneme)
+            list_of_used_phonemes.append(voice["name"] + ":")
+            for phoneme_left, phoneme_right in zip(voice["used_phonemes"][::2], voice["used_phonemes"][1::2]):
+                list_of_used_phonemes.append("{}  |  {}".format(phoneme_left, phoneme_right))
     else:
-        for phoneme in papagayo_json["used_phonemes"]:
-                list_of_used_phonemes.append(phoneme)
+        list_of_used_phonemes.append(papagayo_json["name"] + ":")
+        for phoneme_left, phoneme_right in zip(papagayo_json["used_phonemes"][::2], papagayo_json["used_phonemes"][1::2]):
+                list_of_used_phonemes.append("{}  |  {}".format(phoneme_left, phoneme_right))
     papagayo_file.close()
     return list_of_used_phonemes
             
@@ -130,7 +132,7 @@ def create_grease_objects(file_path):
         sound_path = ""
         if os.path.isabs(papagayo_json["sound_path"]): 
             sound_path = papagayo_json["sound_path"]
-            else:
+        else:
             sound_path = os.path.join(os.path.dirname(file_path), papagayo_json["sound_path"])
         if not bpy.data.sounds.items():
             bpy.ops.sound.open_mono(filepath=sound_path)
