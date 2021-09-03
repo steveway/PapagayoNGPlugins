@@ -153,12 +153,16 @@ def create_grease_objects(file_path):
     else:
         NUM_FRAMES = papagayo_json["end_frame"]
     FRAMES_SPACING = 1  # distance between frames
-    bpy.context.scene.frame_start = -1
+    bpy.context.scene.frame_start = 0
     bpy.context.scene.frame_end = NUM_FRAMES*FRAMES_SPACING
-    bpy.context.scene.frame_current = -1
+    bpy.context.scene.frame_current = 0
     if file_path.endswith(".pg2"):
         for voice in papagayo_json["voices"]:
             curr_name = voice["name"]
+            bpy.ops.object.mode_set(mode = 'OBJECT')
+            bpy.ops.object.gpencil_add(align="WORLD", location=(0,0,0), 
+                                       scale=(1,1,1), type="EMPTY")                        
+            bpy.context.object.name = str(curr_name) + "_stroke"                                   
             if curr_name not in bpy.data.grease_pencils:
                 bpy.data.grease_pencils.new(curr_name)
             for phoneme in voice["used_phonemes"]:
@@ -166,11 +170,16 @@ def create_grease_objects(file_path):
                     bpy.data.grease_pencils[curr_name].layers.new(phoneme)
                 pho_layer = bpy.data.grease_pencils[curr_name].layers[phoneme]
                 try:
-                    frame = pho_layer.frames[-1]
+                    frame = pho_layer.frames[0]
                 except IndexError:
-                    pho_layer.frames.new(-1)
+                    pho_layer.frames.new(0)
+            bpy.data.objects[curr_name + "_stroke"].data = bpy.data.grease_pencils[curr_name]
     else:
         curr_name = papagayo_json["name"]
+        bpy.ops.object.mode_set(mode = 'OBJECT')
+        bpy.ops.object.gpencil_add(align="WORLD", location=(0,0,0), 
+                                   scale=(1,1,1), type="EMPTY")                        
+        bpy.context.object.name = str(curr_name) + "_stroke"   
         if curr_name not in bpy.data.grease_pencils:
             bpy.data.grease_pencils.new(curr_name)
         for phoneme in papagayo_json["used_phonemes"]:
@@ -178,9 +187,10 @@ def create_grease_objects(file_path):
                 bpy.data.grease_pencils[curr_name].layers.new(phoneme)
             pho_layer = bpy.data.grease_pencils[curr_name].layers[phoneme]
             try:
-                frame = pho_layer.frames[-1]
+                frame = pho_layer.frames[0]
             except IndexError:
-                pho_layer.frames.new(-1)
+                pho_layer.frames.new(0)
+        bpy.data.objects[curr_name + "_stroke"].data = bpy.data.grease_pencils[curr_name]
     papagayo_file.close()
 
 
@@ -204,17 +214,17 @@ def fill_timeline(file_path):
         for phrase in voice["phrases"]:
             if bpy.context.scene.my_tool.rest_frames:
                 if phrase["start_frame"] > last_pos + 1:
-                    base_frame = bpy.data.grease_pencils[curr_name].layers["rest"].frames[-1]
+                    base_frame = bpy.data.grease_pencils[curr_name].layers["rest"].frames[0]
                     new_frame = bpy.data.grease_pencils[curr_name].layers[curr_name + "combined"].frames.copy(base_frame)
                     new_frame.frame_number = last_pos + 1
             for word in phrase["words"]:
                 if bpy.context.scene.my_tool.rest_frames:
                     if word["start_frame"] > last_pos + 1:
-                        base_frame = bpy.data.grease_pencils[curr_name].layers["rest"].frames[-1]
+                        base_frame = bpy.data.grease_pencils[curr_name].layers["rest"].frames[0]
                         new_frame = bpy.data.grease_pencils[curr_name].layers[curr_name + "combined"].frames.copy(base_frame)
                         new_frame.frame_number = last_pos + 1
                 for phoneme in word["phonemes"]:
-                    base_frame = bpy.data.grease_pencils[curr_name].layers[phoneme["text"]].frames[-1]
+                    base_frame = bpy.data.grease_pencils[curr_name].layers[phoneme["text"]].frames[0]
                     new_frame = bpy.data.grease_pencils[curr_name].layers[curr_name + "combined"].frames.copy(base_frame)
                     new_frame.frame_number = phoneme["frame"]
                     last_pos = phoneme["frame"]
