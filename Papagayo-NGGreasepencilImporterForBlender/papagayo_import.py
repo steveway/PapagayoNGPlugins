@@ -177,6 +177,7 @@ def create_grease_objects(file_path):
         voice_list.append(papagayo_json)
     for voice in voice_list:
         curr_name = voice["name"]
+        prev_mode = bpy.context.object.mode
         bpy.ops.object.mode_set(mode='OBJECT')
         bpy.ops.object.gpencil_add(align="WORLD", location=[0, 0, 0],
                                    scale=[1, 1, 1], type="EMPTY")
@@ -192,6 +193,7 @@ def create_grease_objects(file_path):
             except IndexError:
                 pho_layer.frames.new(0)
         bpy.data.objects[curr_name + "_stroke"].data = bpy.data.grease_pencils[curr_name]
+        bpy.ops.object.mode_set(prev_mode)
     papagayo_file.close()
 
 
