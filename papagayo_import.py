@@ -18,6 +18,7 @@ from bpy_extras.io_utils import ImportHelper
 from bpy.types import Operator, PropertyGroup
 from bpy.props import StringProperty, BoolProperty, EnumProperty, PointerProperty
 
+
 class OT_TestOpenFilebrowser(Operator, ImportHelper): 
     bl_idname = "test.open_filebrowser" 
     bl_label = "Load Papagayo-NG Project" 
@@ -46,7 +47,8 @@ class BTN_OP_create_grease_objects(Operator):
         create_grease_objects(scene.pg_path)
         scene.pg_objects_created = True
         return {'FINISHED'}
-    
+
+
 class BTN_OP_apply_to_timeline(Operator):
     bl_idname = 'pg.apply_timeline'
     bl_label = 'Start Processing'
@@ -60,15 +62,22 @@ class BTN_OP_apply_to_timeline(Operator):
         fill_timeline(scene.pg_path)
 
         return {'FINISHED'}
-   
+
+
 class MyProperties(PropertyGroup):
 
     rest_frames: BoolProperty(
         name="Enable Rest Frames",
         description="If enabled inserts rest frames into empty frames after words and phrases.",
-        default = False
+        default=False
         )
-                        
+    load_sound: BoolProperty(
+        name="Load the Sound File",
+        description="If enabled the sound file will be imported when creating the Grease Pencil Objects.",
+        default=True
+    )
+
+
 class PapagayoNGImporterUI(bpy.types.Panel):
     bl_id_name = "pg_main_menu"
     bl_space_type = "VIEW_3D"
@@ -95,7 +104,8 @@ class PapagayoNGImporterUI(bpy.types.Panel):
         if scene.pg_path:
             col.label(text="Used Phonemes:")
             for phoneme in get_list_of_phonemes(scene.pg_path):
-                col.label(text=phoneme)                
+                col.label(text=phoneme)
+            col.prop(mytool, "load_sound")
             col.operator("pg.create_objects", text="Create Grease Pencil Objects")
         if scene.pg_objects_created:
             col.separator()
@@ -105,6 +115,7 @@ class PapagayoNGImporterUI(bpy.types.Panel):
             col.label(text="Draw all Phonemes and press the next button.")
             col.separator()
             col.operator("pg.apply_timeline", text="Apply to Timeline")
+
 
 def get_list_of_phonemes(file_path):
     papagayo_file = open(file_path, "r")
@@ -118,10 +129,11 @@ def get_list_of_phonemes(file_path):
     else:
         list_of_used_phonemes.append(papagayo_json["name"] + ":")
         for phoneme_left, phoneme_right in zip(papagayo_json["used_phonemes"][::2], papagayo_json["used_phonemes"][1::2]):
-                list_of_used_phonemes.append("{}  |  {}".format(phoneme_left, phoneme_right))
+            list_of_used_phonemes.append("{}  |  {}".format(phoneme_left, phoneme_right))
     papagayo_file.close()
     return list_of_used_phonemes
-            
+
+
 def create_grease_objects(file_path):
     papagayo_file = open(file_path, "r")
     papagayo_json = json.load(papagayo_file)
@@ -129,17 +141,18 @@ def create_grease_objects(file_path):
     bpy.context.scene.render.fps = FPS
     scene = bpy.types.Scene
     sound_path = ""
-    if os.path.isabs(papagayo_json["sound_path"]): 
-        sound_path = papagayo_json["sound_path"]
-    else:
-        sound_path = os.path.join(os.path.dirname(file_path), papagayo_json["sound_path"])
-    if not bpy.data.sounds.items():
-        bpy.ops.sound.open_mono(filepath=sound_path)
-    scene.pg_sound_data = bpy.data.sounds[0]
-    prev_area_type = bpy.context.area.type
-    bpy.context.area.type = 'SEQUENCE_EDITOR'
-    bpy.ops.sequencer.sound_strip_add(filepath=sound_path, frame_start=0, channel=1)
-    bpy.context.area.type = prev_area_type
+    if bpy.context.scene.my_tool.load_sound:
+        if os.path.isabs(papagayo_json["sound_path"]):
+            sound_path = papagayo_json["sound_path"]
+        else:
+            sound_path = os.path.join(os.path.dirname(file_path), papagayo_json["sound_path"])
+        if not bpy.data.sounds.items():
+            bpy.ops.sound.open_mono(filepath=sound_path)
+        scene.pg_sound_data = bpy.data.sounds[0]
+        prev_area_type = bpy.context.area.type
+        bpy.context.area.type = 'SEQUENCE_EDITOR'
+        bpy.ops.sequencer.sound_strip_add(filepath=sound_path, frame_start=0, channel=1)
+        bpy.context.area.type = prev_area_type
     
     if file_path.endswith(".pg2"):
         # Audio loads fine, can be used with manually added speaker, but this speaker stays silent...
@@ -157,33 +170,20 @@ def create_grease_objects(file_path):
     bpy.context.scene.frame_start = 0
     bpy.context.scene.frame_end = NUM_FRAMES*FRAMES_SPACING
     bpy.context.scene.frame_current = 0
+    voice_list = []
     if file_path.endswith(".pg2"):
-        for voice in papagayo_json["voices"]:
-            curr_name = voice["name"]
-            bpy.ops.object.mode_set(mode = 'OBJECT')
-            bpy.ops.object.gpencil_add(align="WORLD", location=(0,0,0), 
-                                       scale=(1,1,1), type="EMPTY")                        
-            bpy.context.object.name = str(curr_name) + "_stroke"                                   
-            if curr_name not in bpy.data.grease_pencils:
-                bpy.data.grease_pencils.new(curr_name)
-            for phoneme in voice["used_phonemes"]:
-                if phoneme not in bpy.data.grease_pencils[curr_name].layers:
-                    bpy.data.grease_pencils[curr_name].layers.new(phoneme)
-                pho_layer = bpy.data.grease_pencils[curr_name].layers[phoneme]
-                try:
-                    frame = pho_layer.frames[0]
-                except IndexError:
-                    pho_layer.frames.new(0)
-            bpy.data.objects[curr_name + "_stroke"].data = bpy.data.grease_pencils[curr_name]
+        voice_list = papagayo_json["voices"]
     else:
-        curr_name = papagayo_json["name"]
-        bpy.ops.object.mode_set(mode = 'OBJECT')
-        bpy.ops.object.gpencil_add(align="WORLD", location=(0,0,0), 
-                                   scale=(1,1,1), type="EMPTY")                        
-        bpy.context.object.name = str(curr_name) + "_stroke"   
+        voice_list.append(papagayo_json)
+    for voice in voice_list:
+        curr_name = voice["name"]
+        bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.gpencil_add(align="WORLD", location=[0, 0, 0],
+                                   scale=[1, 1, 1], type="EMPTY")
+        bpy.context.object.name = str(curr_name) + "_stroke"
         if curr_name not in bpy.data.grease_pencils:
             bpy.data.grease_pencils.new(curr_name)
-        for phoneme in papagayo_json["used_phonemes"]:
+        for phoneme in voice["used_phonemes"]:
             if phoneme not in bpy.data.grease_pencils[curr_name].layers:
                 bpy.data.grease_pencils[curr_name].layers.new(phoneme)
             pho_layer = bpy.data.grease_pencils[curr_name].layers[phoneme]
@@ -208,7 +208,7 @@ def fill_timeline(file_path):
     
     for voice in voice_list:
         curr_name = voice["name"]
-        if curr_name + "combined" in bpy.data.grease_pencils[curr_name].layers: # TODO: Show a warning and allow to abort
+        if curr_name + "combined" in bpy.data.grease_pencils[curr_name].layers:  # TODO: Show a warning and allow to abort
             bpy.data.grease_pencils[curr_name].layers[curr_name + "combined"].clear()
         else:
             bpy.data.grease_pencils[curr_name].layers.new(curr_name + "combined")
@@ -279,9 +279,11 @@ def create_keyframes(file_path):
                         pho_frame = bpy.data.grease_pencils[curr_name].layers[phoneme["text"]].frames.new(phoneme["frame"])
                     except RuntimeError:
                         pass
-        
+
+
 classes = (PapagayoNGImporterUI, BTN_OP_create_grease_objects, BTN_OP_apply_to_timeline, OT_TestOpenFilebrowser, MyProperties)
-                    
+
+
 def register():
     scene = bpy.types.Scene
     scene.pg_path = ""
@@ -290,10 +292,12 @@ def register():
         bpy.utils.register_class(cls)    
     bpy.types.Scene.my_tool = PointerProperty(type=MyProperties)
 
+
 def unregister(): 
     for cls in classes:
         bpy.utils.unregister_class(cls)
     del bpy.types.Scene.my_tool
-    
+
+
 if __name__ == "__main__": 
     register()
