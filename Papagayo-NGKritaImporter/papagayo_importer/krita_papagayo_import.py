@@ -28,6 +28,11 @@ class PapagayoImporter(DockWidget):
         self.prepare_layers_button = QPushButton("Prepare Krita Layers")
         self.prepare_layers_button.clicked.connect(self.prepare_krita_layers)
         self.layout.addWidget(self.prepare_layers_button)
+        self.insert_rest_frames = QCheckBox("Insert Rest Frames")
+        self.layout.addWidget(self.insert_rest_frames)
+        self.fill_timeline_button = QPushButton("Fill Timeline with Frames")
+        self.fill_timeline_button.clicked.connect(self.fill_timeline)
+        self.layout.addWidget(self.fill_timeline_button)
 
     # notifies when views are added or removed
     # 'pass' means do not do anything
@@ -106,3 +111,74 @@ class PapagayoImporter(DockWidget):
                     group_layer.addChildNode(phoneme_layer, None)
         papagayo_file.close()
 
+    def fill_timeline(self):
+        # TODO: This crashes Krita, using the Clipboard to Copy frames is likely incorrect.
+        file_path = self.papagayo_file_path
+        papagayo_file = open(file_path, "r")
+        papagayo_json = json.load(papagayo_file)
+        application = Krita.instance()
+        currentDoc = application.activeDocument()
+        parent_layer = currentDoc.rootNode()
+        last_pos = 0
+        voice_list = []
+        if file_path.endswith(".pg2"):
+            for voice in papagayo_json["voices"]:
+                voice_list.append(voice)
+        else:
+            voice_list.append(papagayo_json)
+
+        for voice in voice_list:
+            curr_name = voice["name"]
+            group_layer = currentDoc.nodeByName(curr_name)
+            combine_layer = None
+            for child in group_layer.childNodes():
+                if child.name == curr_name + "_combined":
+                    combine_layer = child
+            if not combine_layer:
+                combine_layer = currentDoc.createNode(curr_name + "_combined", "paintLayer")
+                combine_layer.enableAnimation()
+                group_layer.addChildNode(combine_layer, None)
+            for phrase in voice["phrases"]:
+                if self.insert_rest_frames.isChecked():
+                    if phrase["start_frame"] > last_pos + 1:
+                        currentDoc.setCurrentTime(0)
+                        current_group = currentDoc.nodeByName(curr_name)
+                        current_rest = None
+                        for child in current_group.childNodes():
+                            if child.name == "rest":
+                                current_rest = child
+                        currentDoc.setActiveNode(current_rest)
+                        Krita.instance().action("copy_frames_to_clipboard").trigger()
+                        destination_layer = currentDoc.nodeByName(curr_name + "_combined")
+                        currentDoc.setActiveNode(destination_layer)
+                        currentDoc.setCurrentTime(last_pos + 1)
+                        Krita.instance().action("paste_frames_to_clipboard").trigger()
+                for word in phrase["words"]:
+                    if self.insert_rest_frames.isChecked():
+                        if word["start_frame"] > last_pos + 1:
+                            currentDoc.setCurrentTime(0)
+                            current_group = currentDoc.nodeByName(curr_name)
+                            current_rest = None
+                            for child in current_group.childNodes():
+                                if child.name == "rest":
+                                    current_rest = child
+                            currentDoc.setActiveNode(current_rest)
+                            Krita.instance().action("copy_frames_to_clipboard").trigger()
+                            destination_layer = currentDoc.nodeByName(curr_name + "_combined")
+                            currentDoc.setActiveNode(destination_layer)
+                            currentDoc.setCurrentTime(last_pos + 1)
+                            Krita.instance().action("paste_frames_to_clipboard").trigger()
+                    for phoneme in word["phonemes"]:
+                        currentDoc.setCurrentTime(0)
+                        current_group = currentDoc.nodeByName(curr_name)
+                        phoneme_layer = None
+                        for child in current_group.childNodes():
+                            if child.name == phoneme["text"]:
+                                phoneme_layer = child
+                        currentDoc.setActiveNode(phoneme_layer)
+                        Krita.instance().action("copy_frames_to_clipboard").trigger()
+                        destination_layer = currentDoc.nodeByName(curr_name + "_combined")
+                        currentDoc.setActiveNode(destination_layer)
+                        currentDoc.setCurrentTime(phoneme["frame"])
+                        Krita.instance().action("paste_frames_to_clipboard").trigger()
+        papagayo_file.close()
