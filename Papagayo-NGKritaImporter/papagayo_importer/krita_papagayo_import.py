@@ -1,8 +1,9 @@
 import json
+import time
 
 from krita import DockWidget, Krita
 import os
-from PyQt5.QtWidgets import QWidget, QTabWidget, QListView, QVBoxLayout, QLabel, QFileDialog, QPushButton, QCheckBox
+from PyQt5.QtWidgets import QWidget, QTabWidget, QListView, QVBoxLayout, QLabel, QFileDialog, QPushButton, QCheckBox, QMessageBox, QApplication
 
 DOCKER_TITLE = 'Papagayo-NG Importer'
 
@@ -70,11 +71,11 @@ class PapagayoImporter(DockWidget):
         papagayo_json = json.load(papagayo_file)
         FPS = papagayo_json["fps"]
         application = Krita.instance()
-        currentDoc = application.activeDocument()
-        parent_layer = currentDoc.rootNode()
-        if currentDoc:
-            currentLayer = currentDoc.activeNode()
-            currentDoc.setFramesPerSecond(FPS)
+        current_document = application.activeDocument()
+        parent_layer = current_document.rootNode()
+        if current_document:
+            currentLayer = current_document.activeNode()
+            current_document.setFramesPerSecond(FPS)
         sound_path = ""
         if self.load_sound_checkbox.isChecked():
             if os.path.isabs(papagayo_json["sound_path"]):
@@ -87,8 +88,8 @@ class PapagayoImporter(DockWidget):
         else:
             NUM_FRAMES = papagayo_json["end_frame"]
         FRAMES_SPACING = 1  # distance between frames
-        currentDoc.setPlayBackRange(0, NUM_FRAMES * FRAMES_SPACING)
-        currentDoc.setCurrentTime(0)
+        current_document.setPlayBackRange(0, NUM_FRAMES * FRAMES_SPACING)
+        current_document.setCurrentTime(0)
         voice_list = []
         if file_path.endswith(".pg2"):
             voice_list = papagayo_json["voices"]
@@ -96,29 +97,42 @@ class PapagayoImporter(DockWidget):
             voice_list.append(papagayo_json)
         for voice in voice_list:
             curr_name = voice["name"]
-            if not currentDoc.nodeByName(curr_name):
-                group_layer = currentDoc.createGroupLayer(curr_name)
+            if not current_document.nodeByName(curr_name):
+                group_layer = current_document.createGroupLayer(curr_name)
                 group_layer.setPinnedToTimeline(True)
+                group_layer.enableAnimation()
                 parent_layer.addChildNode(group_layer, None)
+            group_layer = current_document.nodeByName(curr_name)
             for phoneme in voice["used_phonemes"]:
-                group_layer = currentDoc.nodeByName(curr_name)
                 phoneme_layer = None
                 for child in group_layer.childNodes():
-                    if child.name == phoneme:
+                    if child.name() == phoneme:
                         phoneme_layer = child
                 if not phoneme_layer:
-                    phoneme_layer = currentDoc.createNode(phoneme, "paintLayer")
+                    phoneme_layer = current_document.createNode(phoneme, "paintLayer")
+                    phoneme_layer.enableAnimation()
                     group_layer.addChildNode(phoneme_layer, None)
+                    #current_document.setCurrentTime(0)
+                    current_document.setActiveNode(phoneme_layer)
+                    #application.action("add_duplicate_frame").trigger()
+                    #current_document.setCurrentTime(0)
+            current_document.setCurrentTime(0)
+            for child in group_layer.childNodes():
+                time.sleep(0.1)
+                QApplication.processEvents()  # Otherwise this can crash Krita...
+                if child.name() in voice["used_phonemes"]:
+                    current_document.setActiveNode(child)
+                    if not child.hasKeyframeAtTime(0):
+                        application.action('add_blank_frame').trigger()
         papagayo_file.close()
 
     def fill_timeline(self):
-        # TODO: This crashes Krita, using the Clipboard to Copy frames is likely incorrect.
         file_path = self.papagayo_file_path
         papagayo_file = open(file_path, "r")
         papagayo_json = json.load(papagayo_file)
         application = Krita.instance()
-        currentDoc = application.activeDocument()
-        parent_layer = currentDoc.rootNode()
+        current_document = application.activeDocument()
+        parent_layer = current_document.rootNode()
         last_pos = 0
         voice_list = []
         if file_path.endswith(".pg2"):
@@ -129,56 +143,64 @@ class PapagayoImporter(DockWidget):
 
         for voice in voice_list:
             curr_name = voice["name"]
-            group_layer = currentDoc.nodeByName(curr_name)
+            group_layer = current_document.nodeByName(curr_name)
             combine_layer = None
             for child in group_layer.childNodes():
-                if child.name == curr_name + "_combined":
+                if child.name() == curr_name + "_combined":
                     combine_layer = child
             if not combine_layer:
-                combine_layer = currentDoc.createNode(curr_name + "_combined", "paintLayer")
+                combine_layer = current_document.createNode(curr_name + "_combined", "paintLayer")
                 combine_layer.enableAnimation()
                 group_layer.addChildNode(combine_layer, None)
             for phrase in voice["phrases"]:
                 if self.insert_rest_frames.isChecked():
                     if phrase["start_frame"] > last_pos + 1:
-                        currentDoc.setCurrentTime(0)
-                        current_group = currentDoc.nodeByName(curr_name)
+                        QApplication.processEvents()  # Otherwise this can crash Krita...
+                        current_document.setCurrentTime(0)
+                        current_group = current_document.nodeByName(curr_name)
                         current_rest = None
                         for child in current_group.childNodes():
-                            if child.name == "rest":
+                            if child.name() == "rest":
                                 current_rest = child
-                        currentDoc.setActiveNode(current_rest)
-                        Krita.instance().action("copy_frames_to_clipboard").trigger()
-                        destination_layer = currentDoc.nodeByName(curr_name + "_combined")
-                        currentDoc.setActiveNode(destination_layer)
-                        currentDoc.setCurrentTime(last_pos + 1)
-                        Krita.instance().action("paste_frames_to_clipboard").trigger()
+                        current_document.setActiveNode(current_rest)
+                        #application.action("add_duplicate_frame").trigger()
+                        application.action("copy_frames").trigger()
+                        destination_layer = current_document.nodeByName(curr_name + "_combined")
+                        current_document.setActiveNode(destination_layer)
+                        current_document.setCurrentTime(last_pos + 1)
+                        application.action("paste_frames").trigger()
                 for word in phrase["words"]:
                     if self.insert_rest_frames.isChecked():
                         if word["start_frame"] > last_pos + 1:
-                            currentDoc.setCurrentTime(0)
-                            current_group = currentDoc.nodeByName(curr_name)
+                            QApplication.processEvents()  # Otherwise this can crash Krita...
+                            current_document.setCurrentTime(0)
+                            current_group = current_document.nodeByName(curr_name)
                             current_rest = None
                             for child in current_group.childNodes():
-                                if child.name == "rest":
+                                if child.name() == "rest":
                                     current_rest = child
-                            currentDoc.setActiveNode(current_rest)
-                            Krita.instance().action("copy_frames_to_clipboard").trigger()
-                            destination_layer = currentDoc.nodeByName(curr_name + "_combined")
-                            currentDoc.setActiveNode(destination_layer)
-                            currentDoc.setCurrentTime(last_pos + 1)
-                            Krita.instance().action("paste_frames_to_clipboard").trigger()
+                            current_document.setActiveNode(current_rest)
+                            #application.action("add_duplicate_frame").trigger()
+                            application.action("copy_frames").trigger()
+                            destination_layer = current_document.nodeByName(curr_name + "_combined")
+                            current_document.setActiveNode(destination_layer)
+                            current_document.setCurrentTime(last_pos + 1)
+                            #application.action('add_blank_frame').trigger()
+                            application.action("paste_frames").trigger()
                     for phoneme in word["phonemes"]:
-                        currentDoc.setCurrentTime(0)
-                        current_group = currentDoc.nodeByName(curr_name)
+                        QApplication.processEvents()  # Otherwise this can crash Krita...
+                        current_document.setCurrentTime(0)
+                        current_group = current_document.nodeByName(curr_name)
                         phoneme_layer = None
                         for child in current_group.childNodes():
-                            if child.name == phoneme["text"]:
+                            if child.name() == phoneme["text"]:
                                 phoneme_layer = child
-                        currentDoc.setActiveNode(phoneme_layer)
-                        Krita.instance().action("copy_frames_to_clipboard").trigger()
-                        destination_layer = currentDoc.nodeByName(curr_name + "_combined")
-                        currentDoc.setActiveNode(destination_layer)
-                        currentDoc.setCurrentTime(phoneme["frame"])
-                        Krita.instance().action("paste_frames_to_clipboard").trigger()
+                        current_document.setActiveNode(phoneme_layer)
+                        #application.action("add_duplicate_frame").trigger()
+                        application.action("copy_frames").trigger()
+                        destination_layer = current_document.nodeByName(curr_name + "_combined")
+                        current_document.setActiveNode(destination_layer)
+                        current_document.setCurrentTime(phoneme["frame"])
+                        #application.action('add_blank_frame').trigger()
+                        application.action("paste_frames").trigger()
         papagayo_file.close()
