@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>PapagayoImporterWidget</class>
+ <widget class="QWidget" name="PapagayoImporterWidget">
+  <property name="windowTitle">
+   <string>Papagayo-NG Importer</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QFrame" name="file_frame">
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <layout class="QVBoxLayout" name="file_layout">
+      <item>
+       <widget class="QPushButton" name="dialog_button">
+        <property name="text">
+         <string>📁 Open Papagayo-NG File</string>
+        </property>
+        <property name="toolTip">
+         <string>Select a .pg2 or .json Papagayo-NG file</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="file_path_label">
+        <property name="text">
+         <string>No file selected</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+        <property name="styleSheet">
+         <string>color: gray; font-style: italic;</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QFrame" name="info_frame">
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <layout class="QVBoxLayout" name="info_layout">
+      <item>
+       <widget class="QLabel" name="info_title_label">
+        <property name="text">
+         <string>File Information:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="file_info_label">
+        <property name="text">
+         <string/>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="phoneme_title_label">
+        <property name="text">
+         <string>Used Phonemes:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QTextEdit" name="phoneme_list_text">
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+        <property name="maximumHeight">
+         <number>100</number>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QFrame" name="options_frame">
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <layout class="QVBoxLayout" name="options_layout">
+      <item>
+       <widget class="QLabel" name="options_title_label">
+        <property name="text">
+         <string>Options:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="load_sound_checkbox">
+        <property name="text">
+         <string>Load Sound from File</string>
+        </property>
+        <property name="toolTip">
+         <string>Import the audio file referenced in the Papagayo file</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="insert_rest_frames">
+        <property name="text">
+         <string>Insert Rest Frames</string>
+        </property>
+        <property name="toolTip">
+         <string>Add rest frames between phonemes</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="show_log_checkbox">
+        <property name="text">
+         <string>Show Log Output</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QFrame" name="actions_frame">
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <layout class="QVBoxLayout" name="actions_layout">
+      <item>
+       <widget class="QPushButton" name="prepare_layers_button">
+        <property name="text">
+         <string>🎨 Prepare Krita Layers</string>
+        </property>
+        <property name="toolTip">
+         <string>Create layer groups and phoneme layers</string>
+        </property>
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="fill_timeline_button">
+        <property name="text">
+         <string>⏱️ Fill Timeline with Frames</string>
+        </property>
+        <property name="toolTip">
+         <string>Apply phoneme timing to the timeline</string>
+        </property>
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QFrame" name="log_frame">
+     <property name="visible">
+      <bool>false</bool>
+     </property>
+     <layout class="QVBoxLayout" name="log_layout">
+      <item>
+       <widget class="QLabel" name="log_title_label">
+        <property name="text">
+         <string>Log Output:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QTextEdit" name="log_output">
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+        <property name="maximumHeight">
+         <number>150</number>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QProgressBar" name="progress_bar">
+     <property name="visible">
+      <bool>false</bool>
+     </property>
+     <property name="value">
+      <number>0</number>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="status_label">
+     <property name="text">
+      <string>Ready</string>
+     </property>
+     <property name="styleSheet">
+      <string>color: green;</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
